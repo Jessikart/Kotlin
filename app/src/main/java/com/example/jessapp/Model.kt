@@ -66,3 +66,14 @@ data class Person(
     val known_for_department: String = ""
     // On peut ajouter "known_for" si on veut la liste des films de l'acteur, mais c'est une liste complexe
 )
+
+data class CreditsResult(
+    val cast: List<Cast> = emptyList()
+)
+
+data class Cast(
+    val id: Int,
+    val name: String,
+    val character: String,
+    val profile_path: String?
+)

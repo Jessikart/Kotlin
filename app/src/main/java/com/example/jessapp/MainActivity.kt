@@ -1,19 +1,21 @@
 package com.example.jessapp
 
-import MainViewModel
+import MainViewModel // Vérifie que ce fichier existe bien
+// Si DetailScreen est dans un autre package, importe-le ici.
+// Sinon, si c'est dans le même package (com.example.jessapp), c'est automatique.
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Movie
@@ -45,11 +48,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
-//import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -71,30 +73,47 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import coil3.compose.AsyncImage
 import com.example.jessapp.ui.theme.JessAppTheme
 
-sealed class AppScreen(val route: String, val title: String, val icon: ImageVector) {
-    object Profile : AppScreen("profile", "Profil", Icons.Default.Person)
-    object Films : AppScreen("films", "Films", Icons.Default.Movie)
-    object Series : AppScreen("series", "Séries", Icons.Default.Tv)
-    object Acteurs : AppScreen("acteurs", "Acteurs", Icons.Default.Face)
+// --- DESTINATIONS ---
+// Utilisation de classes simples avec equals/hashCode obligatoires pour Nav 3
+
+class ProfileDest {
+    override fun equals(other: Any?): Boolean = other is ProfileDest
+    override fun hashCode(): Int = javaClass.hashCode()
 }
 
-class ProfileDest
-class FilmsDest
-class SeriesDest
-class ActeursDest
+class FilmsDest {
+    override fun equals(other: Any?): Boolean = other is FilmsDest
+    override fun hashCode(): Int = javaClass.hashCode()
+}
 
+class SeriesDest {
+    override fun equals(other: Any?): Boolean = other is SeriesDest
+    override fun hashCode(): Int = javaClass.hashCode()
+}
+
+class ActeursDest {
+    override fun equals(other: Any?): Boolean = other is ActeursDest
+    override fun hashCode(): Int = javaClass.hashCode()
+}
+
+// Destinations avec paramètres (ID)
+class MovieDetailDest(val id: Int) {
+    override fun equals(other: Any?): Boolean = other is MovieDetailDest && other.id == id
+    override fun hashCode(): Int = id
+}
+
+class SeriesDetailDest(val id: Int) {
+    override fun equals(other: Any?): Boolean = other is SeriesDetailDest && other.id == id
+    override fun hashCode(): Int = id
+}
 
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -102,19 +121,20 @@ class MainActivity : ComponentActivity() {
         setContent {
             val backStack = remember { mutableStateListOf<Any>(ProfileDest()) }
             val viewModel: MainViewModel = viewModel()
-
-            @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
             val windowSizeClass = calculateWindowSizeClass(this)
 
-            val bottomNavItems = listOf(
-                AppScreen.Films,
-                AppScreen.Series,
-                AppScreen.Acteurs
-            )
+            // Gestion du bouton retour physique
+            BackHandler(enabled = backStack.size > 1) {
+                backStack.removeAt(backStack.lastIndex)
+            }
 
+            // On regarde le dernier écran pour savoir quoi afficher
+            val currentDestination = backStack.lastOrNull()
 
-
-            val showBars = backStack.lastOrNull() !is ProfileDest
+            // On cache les barres sur le Profil ET sur les écrans de détail
+            val showBars = currentDestination !is ProfileDest
+                    && currentDestination !is MovieDetailDest
+                    && currentDestination !is SeriesDetailDest
 
             JessAppTheme {
                 Scaffold(
@@ -122,16 +142,14 @@ class MainActivity : ComponentActivity() {
                         if (showBars) {
                             TmdbTopAppBar(
                                 backStack = backStack,
-                                canNavigateBack = false,
-                                navigateUp = { },
+                                canNavigateBack = backStack.size > 1,
+                                navigateUp = { backStack.removeAt(backStack.lastIndex) },
                                 onSearch = { query ->
-                                    // Appel au ViewModel selon l'écran actif
                                     when (backStack.lastOrNull()) {
-                                        is FilmsDest -> viewModel.searchMovies(query)/* on est sur la première destination */
-                                        is SeriesDest -> viewModel.searchSeries(query)/* on est sur la deuxième */
-                                        is ActeursDest ->  viewModel.searchActors(query)/* on est sur la troisième */
+                                        is FilmsDest -> viewModel.searchMovies(query)
+                                        is SeriesDest -> viewModel.searchSeries(query)
+                                        is ActeursDest -> viewModel.searchActors(query)
                                     }
-
                                 }
                             )
                         }
@@ -139,40 +157,24 @@ class MainActivity : ComponentActivity() {
                     bottomBar = {
                         if (showBars) {
                             NavigationBar(containerColor = Color(0xFF6200EE)) {
-
-                                    NavigationBarItem(
-                                        icon = { Icon(painter = painterResource(R.drawable.outline_airline_seat_recline_normal_24), contentDescription = "Profil") },
-                                        label = { Text("Profile") },
-                                        selected = backStack.lastOrNull() is ProfileDest,
-                                        onClick = {
-                                            backStack.add(ProfileDest())
-                                        }
-                                    )
                                 NavigationBarItem(
-                                    icon = { Icon(painter = painterResource(R.drawable.outline_airline_seat_recline_normal_24), contentDescription = "Profil") },
+                                    icon = { Icon(Icons.Filled.Movie, contentDescription = "Films") },
                                     label = { Text("Films") },
                                     selected = backStack.lastOrNull() is FilmsDest,
-                                    onClick = {
-                                        backStack.add(FilmsDest())
-                                    }
+                                    onClick = { if (backStack.lastOrNull() !is FilmsDest) backStack.add(FilmsDest()) }
                                 )
                                 NavigationBarItem(
-                                    icon = { Icon(painter = painterResource(R.drawable.outline_airline_seat_recline_normal_24), contentDescription = "Profil") },
-                                    label = { Text("Series") },
+                                    icon = { Icon(Icons.Filled.Tv, contentDescription = "Séries") },
+                                    label = { Text("Séries") },
                                     selected = backStack.lastOrNull() is SeriesDest,
-                                    onClick = {
-                                        backStack.add(SeriesDest())
-                                    }
+                                    onClick = { if (backStack.lastOrNull() !is SeriesDest) backStack.add(SeriesDest()) }
                                 )
                                 NavigationBarItem(
-                                    icon = { Icon(painter = painterResource(R.drawable.outline_airline_seat_recline_normal_24), contentDescription = "Profil") },
+                                    icon = { Icon(Icons.Filled.Face, contentDescription = "Acteurs") },
                                     label = { Text("Acteurs") },
                                     selected = backStack.lastOrNull() is ActeursDest,
-                                    onClick = {
-                                        backStack.add(ActeursDest())
-                                    }
+                                    onClick = { if (backStack.lastOrNull() !is ActeursDest) backStack.add(ActeursDest()) }
                                 )
-
                             }
                         }
                     }
@@ -181,13 +183,50 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding),
                         backStack = backStack,
                         entryProvider = entryProvider {
-                            entry<ProfileDest> { Screen(windowSizeClass) { backStack.add(FilmsDest()) } }
-                            entry<FilmsDest> { Films(viewModel) }
-                            entry<SeriesDest> { Series(viewModel) }
-                            entry<ActeursDest> { Acteurs(viewModel) }
+
+                            // 1. Profil
+                            entry<ProfileDest> {
+                                Screen(windowSizeClass) { backStack.add(FilmsDest()) }
+                            }
+
+                            // 2. Films (Avec clic vers détail)
+                            entry<FilmsDest> {
+                                Films(viewModel) { id ->
+                                    backStack.add(MovieDetailDest(id))
+                                }
+                            }
+
+                            // 3. Séries (Avec clic vers détail)
+                            entry<SeriesDest> {
+                                Series(viewModel) { id ->
+                                    backStack.add(SeriesDetailDest(id))
+                                }
+                            }
+
+                            // 4. Acteurs
+                            entry<ActeursDest> {
+                                Acteurs(viewModel)
+                            }
+
+                            // 5. Détail Film
+                            entry<MovieDetailDest> { dest ->
+                                MovieDetailScreen(
+                                    movieId = dest.id,
+                                    viewModel = viewModel,
+                                    onBack = { backStack.removeAt(backStack.lastIndex) }
+                                )
+                            }
+
+                            // 6. Détail Série
+                            entry<SeriesDetailDest> { dest ->
+                                SeriesDetailScreen(
+                                    seriesId = dest.id,
+                                    viewModel = viewModel,
+                                    onBack = { backStack.removeAt(backStack.lastIndex) }
+                                )
+                            }
                         }
                     )
-
                 }
             }
         }
@@ -198,7 +237,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TmdbTopAppBar(
-    backStack:  SnapshotStateList<Any>,
+    backStack: SnapshotStateList<Any>,
     canNavigateBack: Boolean,
     navigateUp: () -> Unit,
     onSearch: (String) -> Unit
@@ -206,31 +245,34 @@ fun TmdbTopAppBar(
     var isSearching by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
 
+    val title = when (backStack.lastOrNull()) {
+        is FilmsDest -> "Films"
+        is SeriesDest -> "Séries"
+        is ActeursDest -> "Acteurs"
+        else -> "App"
+    }
+
     if (isSearching) {
         TopAppBar(
             title = {
                 TextField(
                     value = searchText,
                     onValueChange = { searchText = it },
-                    placeholder = { Text("Rechercher un Films...") },
+                    placeholder = { Text("Rechercher...") },
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
+                        unfocusedContainerColor = Color.Transparent
                     ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            onSearch(searchText)
-                            isSearching = false
-                        }
-                    )
+                    keyboardActions = KeyboardActions(onDone = {
+                        onSearch(searchText)
+                        isSearching = false
+                    })
                 )
             },
             navigationIcon = {
                 IconButton(onClick = { isSearching = false }) {
-                    Icon(Icons.Filled.ArrowBack, "Fermer la recherche")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Fermer")
                 }
             },
             actions = {
@@ -244,205 +286,124 @@ fun TmdbTopAppBar(
         )
     } else {
         TopAppBar(
-            title = { Text("Films", fontWeight = FontWeight.Bold) },
+            title = { Text(title, fontWeight = FontWeight.Bold) },
             navigationIcon = {
                 if (canNavigateBack) {
                     IconButton(onClick = navigateUp) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour")
                     }
                 }
             },
             actions = {
-                // Bouton de recherche disponible sur Films, Séries et Acteurs
                 IconButton(onClick = { isSearching = true }) {
-                    Icon(Icons.Filled.Search, contentDescription = "Rechercher")
+                    Icon(Icons.Filled.Search, "Rechercher")
                 }
             }
         )
     }
 }
 
-// --- ÉCRAN FILMS ---
+// --- LES ÉCRANS ---
+
 @Composable
-fun Films(viewModel: MainViewModel) { // CORRECTION : Suppression de <Any?>
+fun Films(viewModel: MainViewModel, onClick: (Int) -> Unit) { // Ajout du param onClick
     val movies by viewModel.movies.collectAsState()
+    LaunchedEffect(Unit) { if (movies.isEmpty()) viewModel.getMovies() }
 
-    LaunchedEffect(Unit) {
-        if (movies.isEmpty()) {
-            viewModel.getMovies()
-        }
-    }
-
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(150.dp),
+        contentPadding = PaddingValues(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 150.dp),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(movies) { movie ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        AsyncImage(
-                            model = "https://image.tmdb.org/t/p/w500${movie.poster_path}",
-                            contentDescription = movie.title,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            Text(
-                                text = movie.title,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2
-                            )
-                            Text(
-                                text = movie.release_date.takeIf { !it.isNullOrBlank() } ?: "Date inconnue",
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
+        items(movies) { movie ->
+            MediaCard(
+                url = "https://image.tmdb.org/t/p/w500${movie.poster_path}",
+                title = movie.title,
+                subtitle = movie.release_date,
+                onClick = { onClick(movie.id) } // On passe l'ID
+            )
         }
     }
 }
 
-// --- ÉCRAN SÉRIES ---
 @Composable
-fun Series(viewModel: MainViewModel) { // CORRECTION : Suppression de <Any?>
+fun Series(viewModel: MainViewModel, onClick: (Int) -> Unit) { // Ajout du param onClick
     val series by viewModel.series.collectAsState()
+    LaunchedEffect(Unit) { if (series.isEmpty()) viewModel.getSeries() }
 
-    LaunchedEffect(Unit) {
-        if (series.isEmpty()) {
-            viewModel.getSeries()
-        }
-    }
-
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(150.dp),
+        contentPadding = PaddingValues(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 150.dp),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(series) { serie ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        AsyncImage(
-                            model = "https://image.tmdb.org/t/p/w500${serie.poster_path}",
-                            contentDescription = serie.name,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            Text(
-                                text = serie.name,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2
-                            )
-                            Text(
-                                text = serie.first_air_date.takeIf { !it.isNullOrBlank() } ?: "Date inconnue",
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
+        items(series) { serie ->
+            MediaCard(
+                url = "https://image.tmdb.org/t/p/w500${serie.poster_path}",
+                title = serie.name,
+                subtitle = serie.first_air_date,
+                onClick = { onClick(serie.id) } // On passe l'ID
+            )
         }
     }
 }
 
-// --- ÉCRAN ACTEURS ---
 @Composable
-fun Acteurs(viewModel: MainViewModel) { // CORRECTION : Suppression de <Any?>
+fun Acteurs(viewModel: MainViewModel) {
     val actors by viewModel.actors.collectAsState()
+    LaunchedEffect(Unit) { if (actors.isEmpty()) viewModel.getActors() }
 
-    LaunchedEffect(Unit) {
-        if (actors.isEmpty()) {
-            viewModel.getActors()
-        }
-    }
-
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(150.dp),
+        contentPadding = PaddingValues(16.dp),
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 150.dp),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(actors) { actor ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(280.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        AsyncImage(
-                            model = "https://image.tmdb.org/t/p/w500${actor.profile_path}",
-                            contentDescription = actor.name,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                        Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = actor.name,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                maxLines = 2
-                            )
-                        }
-                    }
-                }
-            }
+        items(actors) { actor ->
+            MediaCard(
+                url = "https://image.tmdb.org/t/p/w500${actor.profile_path}",
+                title = actor.name,
+                subtitle = ""
+                // Pas de onClick pour l'instant pour les acteurs
+            )
         }
     }
 }
 
+@Composable
+fun MediaCard(url: String, title: String, subtitle: String?, onClick: () -> Unit = {}) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp)
+            .clickable { onClick() } // La carte devient cliquable
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            AsyncImage(
+                model = url,
+                contentDescription = title,
+                modifier = Modifier.fillMaxWidth().height(200.dp),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(android.R.drawable.ic_menu_gallery)
+            )
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(title, fontWeight = FontWeight.Bold, maxLines = 2)
+                if (!subtitle.isNullOrBlank()) Text(subtitle, fontSize = 12.sp)
+            }
+        }
+    }
+}
 
 // --- ÉCRAN PROFIL ---
 @Composable
 fun Screen(classes: WindowSizeClass, onNavigate: () -> Unit ) {
-    Log.d("monapp","screen")
-    // CORRECTION 1 : Utilisez .widthSizeClass au lieu de .windowWidthSizeClass
     when (classes.widthSizeClass) {
-        // CORRECTION 2 : Utilisez .Compact au lieu de .COMPACT
-        WindowWidthSizeClass.Compact -> {
-            VerticalProfileLayout(onNavigate)
-        }
-        else -> {
-            HorizontalProfileLayout(onNavigate)
-        }
+        WindowWidthSizeClass.Compact -> VerticalProfileLayout(onNavigate)
+        else -> HorizontalProfileLayout(onNavigate)
     }
 }
 
@@ -456,53 +417,45 @@ fun VerticalProfileLayout(onNavigate: () -> Unit) {
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
         Image(
-            painter = painterResource(R.drawable.k2), // Vérifiez que cette image existe bien
+            painter = painterResource(R.drawable.k2),
             contentDescription = "Mon image de profil",
-            modifier = Modifier
-                .size(250.dp)
-                .clip(CircleShape),
+            modifier = Modifier.size(250.dp).clip(CircleShape),
             contentScale = ContentScale.Crop
         )
         Spacer(modifier = Modifier.height(24.dp))
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "Jessika MARTIN",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
+
+            Text(text = "Jessika MARTIN", fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Etudiante en BUT MMI",
-                fontSize = 16.sp,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "IUT PAUL SABATIER",
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center
-            )
+
+            Text(text = "Etudiante en BUT MMI", fontSize = 16.sp, textAlign = TextAlign.Center)
+
+            Text(text = "IUT PAUL SABATIER", fontSize = 14.sp, textAlign = TextAlign.Center)
+
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Column {
             ContactRow(
-                icon = R.drawable.baseline_email_24, // Vérifiez que cette icône existe
+                icon = R.drawable.baseline_email_24,
                 text = "jessika.martin@etu.iut-tlse3.fr",
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
+
             Spacer(modifier = Modifier.height(8.dp))
             ContactRow(
-                icon = R.drawable.linkedin, // Vérifiez que cette icône existe
+
+                icon = R.drawable.linkedin,
                 text = "www.linkedin.com/in/jessika-martin",
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
-        }
 
+        }
         Button(
-            onClick = { onNavigate()  },
+            onClick = { onNavigate() },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
             modifier = Modifier.width(180.dp)
         ) {
@@ -514,68 +467,30 @@ fun VerticalProfileLayout(onNavigate: () -> Unit) {
 @Composable
 fun HorizontalProfileLayout(onNavigate: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalArrangement = Arrangement.SpaceAround
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.weight(1f).padding(end = 16.dp).fillMaxHeight(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Image(
-                painter = painterResource(R.drawable.k2),
-                contentDescription = "Mon image de profil",
-                modifier = Modifier
-                    .size(250.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Jessika MARTIN", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Image(
+            painter = painterResource(R.drawable.k2),
+            contentDescription = "Mon image de profil",
+            modifier = Modifier.size(250.dp).clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+
+        Column {
+            Text("Jessika MARTIN", fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Text(text = "Etudiante en BUT MMI", fontSize = 14.sp)
             Text(text = "IUT PAUL SABATIER", fontSize = 14.sp)
-        }
-        Column(
-            modifier = Modifier.weight(1f).padding(start = 16.dp).fillMaxHeight(),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.Center
-        ) {
-            ContactRow(
-                icon = R.drawable.baseline_email_24,
-                text = "jessika.martin@etu.iut-tlse3.fr"
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            ContactRow(
-                icon = R.drawable.linkedin,
-                text = "www.linkedin.com/in/jessika-martin"
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = { onNavigate() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
-                modifier = Modifier.width(150.dp)
-            ) {
-                Text(text = "Démarrer", color = Color.White)
-            }
+            Button(onClick = { onNavigate() }) { Text(text = "Démarrer") }
         }
     }
 }
 
 @Composable
 fun ContactRow(icon: Int, text: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = Color.DarkGray
-        )
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(painter = painterResource(icon), contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.DarkGray)
         Spacer(modifier = Modifier.width(8.dp))
         Text(text = text, fontSize = 14.sp)
     }
