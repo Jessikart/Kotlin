@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.jetbrains.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -77,5 +79,16 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.material.icons.extended)
+
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+
+    // --- ROOM ---
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    // --- HILT ---
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 
 }

@@ -23,7 +23,8 @@ data class Movie(
     val title: String = "",
     val video: Boolean = false,
     val vote_average: Double = 0.0,
-    val vote_count: Int = 0
+    val vote_count: Int = 0,
+    var isFav: Boolean = false
 )
 
 // --- SÉRIES (Nouveau) ---
@@ -36,7 +37,7 @@ data class SeriesList(
 
 data class Series(
     val id: Int = 0,
-    val name: String = "",           // Attention: "name" au lieu de "title"
+    val name: String = "",
     val original_name: String = "",
     val overview: String = "",
     val poster_path: String = "",
@@ -45,7 +46,8 @@ data class Series(
     val popularity: Double = 0.0,
     val vote_average: Double = 0.0,
     val vote_count: Int = 0,
-    val origin_country: List<String> = listOf()
+    val origin_country: List<String> = listOf(),
+    var isFav: Boolean = false
 )
 
 // --- ACTEURS / PERSONNES (Nouveau) ---
@@ -63,7 +65,8 @@ data class Person(
     val profile_path: String = "",   // Attention: "profile_path" au lieu de "poster_path"
     val gender: Int = 0,
     val popularity: Double = 0.0,
-    val known_for_department: String = ""
+    val known_for_department: String = "",
+    var isFav: Boolean = false
     // On peut ajouter "known_for" si on veut la liste des films de l'acteur, mais c'est une liste complexe
 )
 
