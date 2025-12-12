@@ -41,4 +41,12 @@ interface TmdbAPI {
 
     @GET("tv/{id}")
     suspend fun getSeriesDetail(@Path("id") id: Int, @Query("api_key") api_key: String, @Query("language") language: String = "fr"): Series
+
+    // --- DÉTAILS ACTEUR ---
+    @GET("person/{id}")
+    suspend fun getPersonDetail(
+        @Path("id") id: Int,
+        @Query("api_key") api_key: String,
+        @Query("language") language: String = "fr"
+    ): PersonDetail
 }

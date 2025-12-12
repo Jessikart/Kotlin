@@ -93,3 +93,14 @@ data class Cast(
     val character: String = "",
     val profile_path: String? = null
 )
+
+@Serializable
+data class PersonDetail(
+    val id: Int,
+    val name: String,
+    val profile_path: String? = null,
+    val biography: String = "",
+    val birthday: String? = null,
+    val place_of_birth: String? = null,
+    val known_for_department: String = ""
+)

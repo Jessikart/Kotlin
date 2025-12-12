@@ -22,6 +22,9 @@ class MainViewModel @Inject constructor(
     val selectedSeries = MutableStateFlow<Series?>(null)
     val currentCast = MutableStateFlow<List<Cast>>(emptyList())
 
+    // Variable d'état
+    val selectedPerson = MutableStateFlow<PersonDetail?>(null)
+
     // --- ÉTAT FILTRE (Tout afficher vs Favoris uniquement) ---
     val showOnlyFavorites = MutableStateFlow(false)
 
@@ -193,5 +196,16 @@ class MainViewModel @Inject constructor(
     fun toggleGlobalFilter() {
         showOnlyFavorites.value = !showOnlyFavorites.value
         refreshAll() // Recharge toutes les listes avec le nouveau mode
+    }
+
+    // Fonction de chargement
+    fun getPersonDetail(id: Int) {
+        viewModelScope.launch {
+            try {
+                selectedPerson.value = repository.getPersonDetail(id)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }

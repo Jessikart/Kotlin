@@ -142,4 +142,9 @@ class TmdbRepository @Inject constructor(
     suspend fun getFavoriteActors(): List<Person> {
         return tmdbDao.getFavActors().map { it.fiche.copy(isFav = true) }
     }
+
+    // Dans TmdbRepository
+    suspend fun getPersonDetail(id: Int): PersonDetail {
+        return tmdbAPI.getPersonDetail(id, apiKey)
+    }
 }

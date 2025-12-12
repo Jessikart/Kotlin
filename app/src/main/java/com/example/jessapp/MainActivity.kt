@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +66,10 @@ import kotlinx.serialization.Serializable
     override fun equals(other: Any?): Boolean = other is SeriesDetailDest && other.id == id
     override fun hashCode(): Int = id
 }
+@Serializable class ActorDetailDest(val id: Int) {
+    override fun equals(other: Any?): Boolean = other is ActorDetailDest && other.id == id
+    override fun hashCode(): Int = id
+}
 
 @AndroidEntryPoint // INDISPENSABLE POUR HILT
 class MainActivity : ComponentActivity() {
@@ -76,8 +79,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val backStack = remember { mutableStateListOf<Any>(ProfileDest()) }
-
-            // Grâce à @AndroidEntryPoint, ceci récupère le ViewModel injecté par Hilt
             val viewModel: MainViewModel = viewModel()
             val windowSizeClass = calculateWindowSizeClass(this)
 
@@ -89,9 +90,11 @@ class MainActivity : ComponentActivity() {
             }
 
             val currentDestination = backStack.lastOrNull()
+            // On cache les barres sur le profil ET les détails
             val showBars = currentDestination !is ProfileDest
                     && currentDestination !is MovieDetailDest
                     && currentDestination !is SeriesDetailDest
+                    && currentDestination !is ActorDetailDest
 
             JessAppTheme {
                 Scaffold(
@@ -109,7 +112,7 @@ class MainActivity : ComponentActivity() {
                                         is ActeursDest -> viewModel.searchActors(query)
                                     }
                                 },
-                                onToggleGlobalFilter = { viewModel.toggleGlobalFilter() } // Action du filtre
+                                onToggleGlobalFilter = { viewModel.toggleGlobalFilter() }
                             )
                         }
                     },
@@ -123,8 +126,8 @@ class MainActivity : ComponentActivity() {
                                     onClick = { if (backStack.lastOrNull() !is FilmsDest) backStack.add(FilmsDest()) }
                                 )
                                 NavigationBarItem(
-                                    icon = { Icon(painter = painterResource(R.drawable.outline_animated_images_24), contentDescription = "Séries") },
-                                    label = { Text("Séries") },
+                                    icon = { Icon(painter = painterResource(R.drawable.outline_animated_images_24), contentDescription = "Series") },
+                                    label = { Text("Series") },
                                     selected = backStack.lastOrNull() is SeriesDest,
                                     onClick = { if (backStack.lastOrNull() !is SeriesDest) backStack.add(SeriesDest()) }
                                 )
@@ -142,47 +145,39 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding),
                         backStack = backStack,
                         entryProvider = entryProvider {
-
-                            // 1. Profil
                             entry<ProfileDest> { Screen(windowSizeClass) { backStack.add(FilmsDest()) } }
 
-                            // 2. Films (Avec clic vers détail)
+                            // FILMS
                             entry<FilmsDest> {
                                 Films(
                                     viewModel = viewModel,
                                     onClick = { id -> backStack.add(MovieDetailDest(id)) }
                                 )
                             }
-
-                            // 3. Séries (Avec clic vers détail)
+                            // SÉRIES
                             entry<SeriesDest> {
                                 Series(
                                     viewModel = viewModel,
                                     onClick = { id -> backStack.add(SeriesDetailDest(id)) }
                                 )
                             }
-
-                            // 4. Acteurs
+                            // ACTEURS
                             entry<ActeursDest> {
-                                Acteurs(viewModel)
+                                Acteurs(
+                                    viewModel = viewModel,
+                                    onClick = { id -> backStack.add(ActorDetailDest(id)) }
+                                )
                             }
 
-                            // 5. Détail Film (AJOUTÉ)
+                            // DÉTAILS
                             entry<MovieDetailDest> { dest ->
-                                MovieDetailScreen(
-                                    movieId = dest.id,
-                                    viewModel = viewModel,
-                                    onBack = { backStack.removeAt(backStack.lastIndex) }
-                                )
+                                MovieDetailScreen(dest.id, viewModel) { backStack.removeAt(backStack.lastIndex) }
                             }
-
-                            // 6. Détail Série (AJOUTÉ)
                             entry<SeriesDetailDest> { dest ->
-                                SeriesDetailScreen(
-                                    seriesId = dest.id,
-                                    viewModel = viewModel,
-                                    onBack = { backStack.removeAt(backStack.lastIndex) }
-                                )
+                                SeriesDetailScreen(dest.id, viewModel) { backStack.removeAt(backStack.lastIndex) }
+                            }
+                            entry<ActorDetailDest> { dest ->
+                                ActorDetailScreen(dest.id, viewModel) { backStack.removeAt(backStack.lastIndex) }
                             }
                         }
                     )
@@ -192,7 +187,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// --- TOP BAR (Mise à jour avec filtre favoris) ---
+// --- TOP BAR (Avec filtre favoris) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TmdbTopAppBar(
@@ -244,7 +239,7 @@ fun TmdbTopAppBar(
                 }
             },
             actions = {
-                // BOUTON FILTRE FAVORIS (CŒUR)
+                // BOUTON CŒUR FILTRE
                 IconButton(onClick = onToggleGlobalFilter) {
                     Icon(
                         imageVector = if (showOnlyFavorites) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
@@ -258,7 +253,7 @@ fun TmdbTopAppBar(
     }
 }
 
-// --- ÉCRANS (Mise à jour pour passer les favoris et le clic) ---
+// --- ÉCRANS (Avec gestion favoris et clic) ---
 
 @Composable
 fun Films(viewModel: MainViewModel, onClick: (Int) -> Unit) {
@@ -311,7 +306,7 @@ fun Series(viewModel: MainViewModel, onClick: (Int) -> Unit) {
 }
 
 @Composable
-fun Acteurs(viewModel: MainViewModel) {
+fun Acteurs(viewModel: MainViewModel, onClick: (Int) -> Unit) {
     val actors by viewModel.actors.collectAsState()
     LaunchedEffect(Unit) { if (actors.isEmpty()) viewModel.getActors() }
 
@@ -329,13 +324,13 @@ fun Acteurs(viewModel: MainViewModel) {
                 subtitle = "",
                 isFav = actor.isFav,
                 onFavClick = { viewModel.toggleFavoriteActor(actor) },
-                onClick = {} // Pas de détail pour acteurs pour l'instant
+                onClick = { onClick(actor.id) }
             )
         }
     }
 }
 
-// --- MEDIA CARD (Avec Cœur Favori) ---
+// --- MEDIA CARD (Avec Image et Cœur) ---
 @Composable
 fun MediaCard(
     url: String,
@@ -366,7 +361,7 @@ fun MediaCard(
                 }
             }
 
-            // ICÔNE CŒUR (Favoris)
+            // ICÔNE FAVORIS
             IconButton(
                 onClick = onFavClick,
                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
@@ -381,7 +376,7 @@ fun MediaCard(
     }
 }
 
-// --- ÉCRAN PROFIL (Identique) ---
+// --- ÉCRAN PROFIL (Inchangé) ---
 @Composable
 fun Screen(classes: WindowSizeClass, onNavigate: () -> Unit ) {
     when (classes.widthSizeClass) {
@@ -435,16 +430,14 @@ fun HorizontalProfileLayout(onNavigate: () -> Unit) {
         )
         Column {
             Text("Jessika MARTIN", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-            Text("Etudiante en BUT MMI", fontSize = 14.sp)
-            Text("IUT PAUL SABATIER", fontSize = 14.sp)
             Button(onClick = { onNavigate() }) { Text("Démarrer") }
         }
     }
 }
 
 @Composable
-fun ContactRow(icon: Int, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+fun ContactRow(icon: Int, text: String, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Icon(painter = painterResource(icon), contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.DarkGray)
         Spacer(modifier = Modifier.width(8.dp))
         Text(text = text, fontSize = 14.sp)
