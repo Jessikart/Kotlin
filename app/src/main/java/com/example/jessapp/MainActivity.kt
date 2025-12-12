@@ -407,3 +407,14 @@ fun ContactRow(icon: Int, text: String, modifier: Modifier = Modifier) {
         Text(text = text, fontSize = 14.sp)
     }
 }
+
+/*@Composable
+fun Cuisine()
+  {
+                width = "5",
+                heigth = "3",
+                name = "kaka",
+                surface = { height*width }
+
+        }
+*/

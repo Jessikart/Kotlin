@@ -70,7 +70,6 @@ data class Person(
     val id: Int,
     val name: String,
     val original_name: String = "",
-    // CORRECTION IMPORTANTE : profile_path PEUT ÊTRE NULL
     val profile_path: String? = null,
     val gender: Int = 0,
     val popularity: Double = 0.0,
