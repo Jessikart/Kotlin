@@ -1,6 +1,9 @@
 package com.example.jessapp
 
-// --- FILMS (Déjà existant) ---
+import kotlinx.serialization.Serializable
+
+// --- FILMS ---
+@Serializable
 data class MovieList(
     val page: Int = 0,
     val results: List<Movie> = listOf(),
@@ -8,26 +11,29 @@ data class MovieList(
     val total_results: Int = 0
 )
 
+@Serializable
 data class Movie(
+    val id: Int,
+    val title: String,
+    // CORRECTION : String? = null pour éviter le crash si pas d'image
+    val poster_path: String? = null,
+    val backdrop_path: String? = null,
+    val release_date: String? = null,
+    val overview: String = "",
+    val popularity: Double = 0.0,
+    val vote_average: Double = 0.0,
+    val vote_count: Int = 0,
     val adult: Boolean = false,
-    val backdrop_path: String = "",
-    val genre_ids: List<Int> = listOf(),
-    val id: Int = 0,
     val media_type: String = "",
     val original_language: String = "",
     val original_title: String = "",
-    val overview: String = "",
-    val popularity: Double = 0.0,
-    val poster_path: String = "",
-    val release_date: String = "",
-    val title: String = "",
     val video: Boolean = false,
-    val vote_average: Double = 0.0,
-    val vote_count: Int = 0,
+    // Champs ajoutés manuellement (pas dans le JSON)
     var isFav: Boolean = false
 )
 
-// --- SÉRIES (Nouveau) ---
+// --- SÉRIES ---
+@Serializable
 data class SeriesList(
     val page: Int = 0,
     val results: List<Series> = listOf(),
@@ -35,14 +41,16 @@ data class SeriesList(
     val total_results: Int = 0
 )
 
+@Serializable
 data class Series(
-    val id: Int = 0,
-    val name: String = "",
-    val original_name: String = "",
+    val id: Int,
+    val name: String,
+    // CORRECTION : String? = null
+    val poster_path: String? = null,
+    val backdrop_path: String? = null,
+    val first_air_date: String? = null,
     val overview: String = "",
-    val poster_path: String = "",
-    val backdrop_path: String = "",
-    val first_air_date: String = "", // Attention: "first_air_date" au lieu de "release_date"
+    val original_name: String = "",
     val popularity: Double = 0.0,
     val vote_average: Double = 0.0,
     val vote_count: Int = 0,
@@ -50,7 +58,8 @@ data class Series(
     var isFav: Boolean = false
 )
 
-// --- ACTEURS / PERSONNES (Nouveau) ---
+// --- ACTEURS / PERSONNES ---
+@Serializable
 data class PersonList(
     val page: Int = 0,
     val results: List<Person> = listOf(),
@@ -58,25 +67,29 @@ data class PersonList(
     val total_results: Int = 0
 )
 
+@Serializable
 data class Person(
-    val id: Int = 0,
-    val name: String = "",
+    val id: Int,
+    val name: String,
     val original_name: String = "",
-    val profile_path: String = "",   // Attention: "profile_path" au lieu de "poster_path"
+    // CORRECTION IMPORTANTE : profile_path PEUT ÊTRE NULL
+    val profile_path: String? = null,
     val gender: Int = 0,
     val popularity: Double = 0.0,
     val known_for_department: String = "",
     var isFav: Boolean = false
-    // On peut ajouter "known_for" si on veut la liste des films de l'acteur, mais c'est une liste complexe
 )
 
+// --- CRÉDITS (DÉTAILS) ---
+@Serializable
 data class CreditsResult(
     val cast: List<Cast> = emptyList()
 )
 
+@Serializable
 data class Cast(
     val id: Int,
     val name: String,
-    val character: String,
-    val profile_path: String?
+    val character: String = "",
+    val profile_path: String? = null
 )
