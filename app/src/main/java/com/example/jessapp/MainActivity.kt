@@ -12,9 +12,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -71,7 +69,7 @@ import kotlinx.serialization.Serializable
     override fun hashCode(): Int = id
 }
 
-@AndroidEntryPoint // INDISPENSABLE POUR HILT
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,8 +79,6 @@ class MainActivity : ComponentActivity() {
             val backStack = remember { mutableStateListOf<Any>(ProfileDest()) }
             val viewModel: MainViewModel = viewModel()
             val windowSizeClass = calculateWindowSizeClass(this)
-
-            // État du filtre "Favoris uniquement"
             val showOnlyFavorites by viewModel.showOnlyFavorites.collectAsState()
 
             BackHandler(enabled = backStack.size > 1) {
@@ -90,7 +86,6 @@ class MainActivity : ComponentActivity() {
             }
 
             val currentDestination = backStack.lastOrNull()
-            // On cache les barres sur le profil ET les détails
             val showBars = currentDestination !is ProfileDest
                     && currentDestination !is MovieDetailDest
                     && currentDestination !is SeriesDetailDest
@@ -100,10 +95,11 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         if (showBars) {
+
                             TmdbTopAppBar(
                                 backStack = backStack,
                                 canNavigateBack = backStack.size > 1,
-                                showOnlyFavorites = showOnlyFavorites, // On passe l'état du filtre
+                                showOnlyFavorites = showOnlyFavorites,
                                 navigateUp = { backStack.removeAt(backStack.lastIndex) },
                                 onSearch = { query ->
                                     when (backStack.lastOrNull()) {
@@ -126,8 +122,8 @@ class MainActivity : ComponentActivity() {
                                     onClick = { if (backStack.lastOrNull() !is FilmsDest) backStack.add(FilmsDest()) }
                                 )
                                 NavigationBarItem(
-                                    icon = { Icon(painter = painterResource(R.drawable.outline_animated_images_24), contentDescription = "Series") },
-                                    label = { Text("Series") },
+                                    icon = { Icon(painter = painterResource(R.drawable.outline_animated_images_24), contentDescription = "Séries") },
+                                    label = { Text("Séries") },
                                     selected = backStack.lastOrNull() is SeriesDest,
                                     onClick = { if (backStack.lastOrNull() !is SeriesDest) backStack.add(SeriesDest()) }
                                 )
@@ -143,25 +139,29 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     NavDisplay(
                         modifier = Modifier.padding(innerPadding),
-                        backStack = backStack,
+                        backStack = backStack, // <--- C'est ici que j'ai corrigé le 'S' majuscule
                         entryProvider = entryProvider {
+
+                            // 1. Profil
                             entry<ProfileDest> { Screen(windowSizeClass) { backStack.add(FilmsDest()) } }
 
-                            // FILMS
+                            // 2. Films
                             entry<FilmsDest> {
                                 Films(
                                     viewModel = viewModel,
                                     onClick = { id -> backStack.add(MovieDetailDest(id)) }
                                 )
                             }
-                            // SÉRIES
+
+                            // 3. Séries
                             entry<SeriesDest> {
                                 Series(
                                     viewModel = viewModel,
                                     onClick = { id -> backStack.add(SeriesDetailDest(id)) }
                                 )
                             }
-                            // ACTEURS
+
+                            // 4. Acteurs
                             entry<ActeursDest> {
                                 Acteurs(
                                     viewModel = viewModel,
@@ -169,13 +169,17 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            // DÉTAILS
+                            // 5. Détail Film
                             entry<MovieDetailDest> { dest ->
                                 MovieDetailScreen(dest.id, viewModel) { backStack.removeAt(backStack.lastIndex) }
                             }
+
+                            // 6. Détail Série
                             entry<SeriesDetailDest> { dest ->
                                 SeriesDetailScreen(dest.id, viewModel) { backStack.removeAt(backStack.lastIndex) }
                             }
+
+                            // 7. Détail Acteur
                             entry<ActorDetailDest> { dest ->
                                 ActorDetailScreen(dest.id, viewModel) { backStack.removeAt(backStack.lastIndex) }
                             }
@@ -187,73 +191,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// --- TOP BAR (Avec filtre favoris) ---
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TmdbTopAppBar(
-    backStack: SnapshotStateList<Any>,
-    canNavigateBack: Boolean,
-    showOnlyFavorites: Boolean,
-    navigateUp: () -> Unit,
-    onSearch: (String) -> Unit,
-    onToggleGlobalFilter: () -> Unit
-) {
-    var isSearching by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
-
-    val title = when (backStack.lastOrNull()) {
-        is FilmsDest -> "Films"
-        is SeriesDest -> "Séries"
-        is ActeursDest -> "Acteurs"
-        else -> "App"
-    }
-
-    if (isSearching) {
-        TopAppBar(
-            title = {
-                TextField(
-                    value = searchText,
-                    onValueChange = { searchText = it },
-                    placeholder = { Text("Rechercher...") },
-                    singleLine = true,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    ),
-                    keyboardActions = KeyboardActions(onDone = { onSearch(searchText); isSearching = false })
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = { isSearching = false }) { Icon(Icons.Filled.ArrowBack, "Fermer") }
-            },
-            actions = {
-                IconButton(onClick = { onSearch(searchText); isSearching = false }) { Icon(Icons.Filled.Search, "Valider") }
-            }
-        )
-    } else {
-        TopAppBar(
-            title = { Text(title, fontWeight = FontWeight.Bold) },
-            navigationIcon = {
-                if (canNavigateBack) {
-                    IconButton(onClick = navigateUp) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour") }
-                }
-            },
-            actions = {
-                // BOUTON CŒUR FILTRE
-                IconButton(onClick = onToggleGlobalFilter) {
-                    Icon(
-                        imageVector = if (showOnlyFavorites) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Filtre Favoris",
-                        tint = if (showOnlyFavorites) Color.Red else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                IconButton(onClick = { isSearching = true }) { Icon(Icons.Filled.Search, "Rechercher") }
-            }
-        )
-    }
-}
-
-// --- ÉCRANS (Avec gestion favoris et clic) ---
 
 @Composable
 fun Films(viewModel: MainViewModel, onClick: (Int) -> Unit) {
@@ -330,7 +267,6 @@ fun Acteurs(viewModel: MainViewModel, onClick: (Int) -> Unit) {
     }
 }
 
-// --- MEDIA CARD (Avec Image et Cœur) ---
 @Composable
 fun MediaCard(
     url: String,
@@ -360,8 +296,6 @@ fun MediaCard(
                     if (!subtitle.isNullOrBlank()) Text(subtitle, fontSize = 12.sp)
                 }
             }
-
-            // ICÔNE FAVORIS
             IconButton(
                 onClick = onFavClick,
                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
@@ -376,7 +310,7 @@ fun MediaCard(
     }
 }
 
-// --- ÉCRAN PROFIL (Inchangé) ---
+// --- ÉCRAN PROFIL
 @Composable
 fun Screen(classes: WindowSizeClass, onNavigate: () -> Unit ) {
     when (classes.widthSizeClass) {
@@ -418,19 +352,49 @@ fun VerticalProfileLayout(onNavigate: () -> Unit) {
 @Composable
 fun HorizontalProfileLayout(onNavigate: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalArrangement = Arrangement.SpaceAround,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
+
         Image(
             painter = painterResource(R.drawable.k2),
             contentDescription = "Profil",
-            modifier = Modifier.size(250.dp).clip(CircleShape),
+            modifier = Modifier
+                .size(220.dp)
+                .clip(CircleShape),
             contentScale = ContentScale.Crop
         )
-        Column {
+
+        Spacer(modifier = Modifier.width(48.dp))
+
+        Column(
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.Center
+        ) {
+
             Text("Jessika MARTIN", fontSize = 28.sp, fontWeight = FontWeight.Bold)
-            Button(onClick = { onNavigate() }) { Text("Démarrer") }
+            Text("Etudiante en BUT MMI", fontSize = 16.sp)
+            Text("IUT PAUL SABATIER", fontSize = 14.sp)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+
+            ContactRow(R.drawable.baseline_email_24, "jessika.martin@etu.iut-tlse3.fr")
+            Spacer(modifier = Modifier.height(8.dp))
+            ContactRow(R.drawable.linkedin, "www.linkedin.com/in/jessika-martin")
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+
+            Button(
+                onClick = onNavigate,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
+            ) {
+                Text("Démarrer", color = Color.White)
+            }
         }
     }
 }

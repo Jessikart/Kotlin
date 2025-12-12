@@ -15,7 +15,6 @@ data class MovieList(
 data class Movie(
     val id: Int,
     val title: String,
-    // CORRECTION : String? = null pour éviter le crash si pas d'image
     val poster_path: String? = null,
     val backdrop_path: String? = null,
     val release_date: String? = null,
@@ -28,7 +27,6 @@ data class Movie(
     val original_language: String = "",
     val original_title: String = "",
     val video: Boolean = false,
-    // Champs ajoutés manuellement (pas dans le JSON)
     var isFav: Boolean = false
 )
 
@@ -80,7 +78,7 @@ data class Person(
     var isFav: Boolean = false
 )
 
-// --- CRÉDITS (DÉTAILS) ---
+
 @Serializable
 data class CreditsResult(
     val cast: List<Cast> = emptyList()

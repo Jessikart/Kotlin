@@ -1,6 +1,6 @@
 package com.example.jessapp
 
-// Si MainViewModel est dans le même package, l'import n'est pas nécessaire
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

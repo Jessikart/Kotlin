@@ -10,17 +10,14 @@ class TmdbRepository @Inject constructor(
     private val tmdbAPI: TmdbAPI,
     private val tmdbDao: TmdbDao
 ) {
-    // Votre clé API (idéalement à mettre dans le local.properties, mais ok ici pour l'exercice)
+
     private val apiKey = "921cce22156ad67dc3690d7c881e4037"
 
-    // ===================================================================================
-    // FILMS
-    // ===================================================================================
 
-    // Récupère les films populaires et coche "isFav" si le film est en base
+
     suspend fun getMovies(): List<Movie> {
         val apiMovies = tmdbAPI.getLastMovies(apiKey).results
-        val favMoviesIds = tmdbDao.getFavMovies().map { it.id } // On récupère juste les IDs des favoris
+        val favMoviesIds = tmdbDao.getFavMovies().map { it.id }
 
         return apiMovies.map { movie ->
             if (favMoviesIds.contains(movie.id)) {
@@ -31,7 +28,6 @@ class TmdbRepository @Inject constructor(
         }
     }
 
-    // Recherche de films + vérification favoris
     suspend fun searchMovies(query: String): List<Movie> {
         val apiMovies = tmdbAPI.searchMovies(apiKey, query).results
         val favMoviesIds = tmdbDao.getFavMovies().map { it.id }
@@ -41,22 +37,18 @@ class TmdbRepository @Inject constructor(
         }
     }
 
-    // Ajoute un film aux favoris
     suspend fun addFavoriteMovie(movie: Movie) {
         tmdbDao.addMovie(FilmEntity(movie.id, movie))
     }
 
-    // Supprime un film des favoris
     suspend fun removeFavoriteMovie(id: Int) {
         tmdbDao.deleteMovie(id)
     }
 
-    // Récupère UNIQUEMENT les films favoris (depuis la base locale)
     suspend fun getFavoriteMovies(): List<Movie> {
         return tmdbDao.getFavMovies().map { it.fiche.copy(isFav = true) }
     }
 
-    // Récupère le détail d'un film (API)
     suspend fun getMovieDetail(id: Int): Movie {
         return tmdbAPI.getMovieDetail(id, apiKey)
     }
@@ -65,10 +57,6 @@ class TmdbRepository @Inject constructor(
         return tmdbAPI.getMovieCredits(id, apiKey).cast
     }
 
-
-    // ===================================================================================
-    // SÉRIES
-    // ===================================================================================
 
     suspend fun getSeries(): List<Series> {
         val apiSeries = tmdbAPI.getLastSeries(apiKey).results
@@ -109,9 +97,6 @@ class TmdbRepository @Inject constructor(
     }
 
 
-    // ===================================================================================
-    // ACTEURS
-    // ===================================================================================
 
     suspend fun getActors(): List<Person> {
         val apiActors = tmdbAPI.getLastPersons(apiKey).results
@@ -143,7 +128,6 @@ class TmdbRepository @Inject constructor(
         return tmdbDao.getFavActors().map { it.fiche.copy(isFav = true) }
     }
 
-    // Dans TmdbRepository
     suspend fun getPersonDetail(id: Int): PersonDetail {
         return tmdbAPI.getPersonDetail(id, apiKey)
     }

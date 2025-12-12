@@ -7,7 +7,7 @@ import com.example.jessapp.Person
 import com.example.jessapp.Series
 import com.squareup.moshi.Moshi
 
-@ProvidedTypeConverter // Indique à Room que Hilt va fournir cette classe
+@ProvidedTypeConverter
 class Converters(private val moshi: Moshi) {
 
     // --- MOVIE ---

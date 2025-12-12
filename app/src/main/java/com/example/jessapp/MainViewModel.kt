@@ -7,9 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@HiltViewModel // Indispensable pour que Hilt sache créer ce ViewModel
+@HiltViewModel
 class MainViewModel @Inject constructor(
-    private val repository: TmdbRepository // On injecte le Repository, plus d'API directe
+    private val repository: TmdbRepository
 ) : ViewModel() {
 
     // --- ÉTATS DES LISTES ---
@@ -25,33 +25,28 @@ class MainViewModel @Inject constructor(
     // Variable d'état
     val selectedPerson = MutableStateFlow<PersonDetail?>(null)
 
-    // --- ÉTAT FILTRE (Tout afficher vs Favoris uniquement) ---
+    // --- ÉTAT FILTRE
     val showOnlyFavorites = MutableStateFlow(false)
 
-    // Initialisation : on charge les données au lancement
     init {
         refreshAll()
     }
 
-    // Fonction centrale pour recharger les données selon le filtre actif
     private fun refreshAll() {
         getMovies()
         getSeries()
         getActors()
     }
 
-    // ===================================================================================
-    // LOGIQUE FILMS
-    // ===================================================================================
 
     fun getMovies() {
         viewModelScope.launch {
             try {
                 if (showOnlyFavorites.value) {
-                    // Si filtre activé : on prend juste la DB locale
+
                     movies.value = repository.getFavoriteMovies()
                 } else {
-                    // Sinon : on prend l'API (qui vérifie aussi les favoris)
+
                     movies.value = repository.getMovies()
                 }
             } catch (e: Exception) { e.printStackTrace() }
@@ -61,26 +56,23 @@ class MainViewModel @Inject constructor(
     fun searchMovies(query: String) {
         viewModelScope.launch {
             try {
-                // La recherche se fait toujours sur l'API (ou filtre local si on veut pousser la logique)
-                // Ici on reste simple : recherche API standard
+
                 movies.value = repository.searchMovies(query)
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
-    // Gestion du clic sur le cœur (Toggle)
+    // Gestion du clic sur le cœur
     fun toggleFavoriteMovie(movie: Movie) {
         viewModelScope.launch {
             if (movie.isFav) {
                 repository.removeFavoriteMovie(movie.id)
             } else {
-                // On ajoute une copie avec isFav = true
                 repository.addFavoriteMovie(movie.copy(isFav = true))
             }
-            // On rafraichit la liste pour voir le cœur changer de couleur
+
             getMovies()
 
-            // Si on est sur l'écran de détail, on met à jour l'objet sélectionné aussi
             if (selectedMovie.value?.id == movie.id) {
                 selectedMovie.value = movie.copy(isFav = !movie.isFav)
             }
@@ -90,9 +82,8 @@ class MainViewModel @Inject constructor(
     fun getMovieDetail(id: Int) {
         viewModelScope.launch {
             try {
-                // On récupère le détail
+
                 val movie = repository.getMovieDetail(id)
-                // On vérifie s'il est en favori dans la base pour cocher la case si besoin
                 val favs = repository.getFavoriteMovies()
                 val isFav = favs.any { it.id == id }
 
@@ -102,9 +93,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // ===================================================================================
-    // LOGIQUE SÉRIES
-    // ===================================================================================
+
 
     fun getSeries() {
         viewModelScope.launch {
@@ -154,9 +143,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // ===================================================================================
-    // LOGIQUE ACTEURS
-    // ===================================================================================
+
 
     fun getActors() {
         viewModelScope.launch {
@@ -189,16 +176,13 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // ===================================================================================
-    // FILTRE GLOBAL
-    // ===================================================================================
+
 
     fun toggleGlobalFilter() {
         showOnlyFavorites.value = !showOnlyFavorites.value
-        refreshAll() // Recharge toutes les listes avec le nouveau mode
+        refreshAll()
     }
 
-    // Fonction de chargement
     fun getPersonDetail(id: Int) {
         viewModelScope.launch {
             try {

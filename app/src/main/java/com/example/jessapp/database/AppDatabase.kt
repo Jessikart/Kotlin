@@ -7,9 +7,9 @@ import androidx.room.TypeConverters
 @Database(
     entities = [FilmEntity::class, SerieEntity::class, ActeurEntity::class],
     version = 1,
-    exportSchema = false // On met false pour éviter un warning de build
+    exportSchema = false
 )
-@TypeConverters(Converters::class) // On attache nos convertisseurs Moshi ici
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun dao(): TmdbDao
 }
